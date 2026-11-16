@@ -833,7 +833,7 @@ func fillDefinitionDescriptionV3(parser *Parser, definition *spec.Schema, file *
 				typeName = typeSpec.Name.Name
 			}
 
-			text, err := parser.extractDeclarationDescription(typeName, typeSpec.Comment, generalDeclaration.Doc)
+			text, err := parser.extractDeclarationDescription(typeName, typeSpec.Doc, typeSpec.Comment, generalDeclaration.Doc)
 			if err != nil {
 				parser.debug.Printf("Error extracting declaration description: %s", err)
 				continue
