@@ -1548,7 +1548,33 @@ func (parser *Parser) extractDeclarationDescription(typeName string, commentGrou
 		}
 	}
 
-	return strings.TrimLeft(description, " "), nil
+	if description != "" {
+		return strings.TrimLeft(description, " "), nil
+	}
+	return docCommentText(commentGroups...), nil
+}
+
+// docCommentText is the plain text of the first comment group that has
+// any, without annotation lines: a type's Go doc comment, which describes
+// it when it carries no @Description.
+func docCommentText(commentGroups ...*ast.CommentGroup) string {
+	for _, group := range commentGroups {
+		if group == nil {
+			continue
+		}
+		var lines []string
+		for _, comment := range group.List {
+			line := strings.TrimSpace(strings.TrimPrefix(comment.Text, "//"))
+			if strings.HasPrefix(line, "@") {
+				continue
+			}
+			lines = append(lines, line)
+		}
+		if text := strings.TrimSpace(strings.Join(lines, "\n")); text != "" {
+			return text
+		}
+	}
+	return ""
 }
 
 // parseTypeExpr parses given type expression that corresponds to the type under

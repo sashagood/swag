@@ -57,11 +57,14 @@
   },
   "definitions": {
       "web.CrossErrors": {
+          "description": "Errors errors and interfaces",
           "type": "object",
           "properties": {
               "any": {},
               "error": {},
-              "errorInterface": {},
+              "errorInterface": {
+                  "description": "CustomInterface some interface"
+              },
               "interface": {}
           }
       }
