@@ -1242,6 +1242,34 @@ func TestParseParamCommentByBodyTextPlainV3(t *testing.T) {
 	assert.Equal(t, &typeString, requestBodySpec.Content["text/plain"].Spec.Schema.Spec.Type)
 }
 
+func TestParseParamCommentByBodyUnderAcceptedRawTypesV3(t *testing.T) {
+	t.Parallel()
+
+	operation := NewOperationV3(New())
+	assert.NoError(t, operation.ParseComment(`@Accept octet-stream`, nil))
+	assert.NoError(t, operation.ParseComment(`@Param body body string true "The file's bytes" format(binary)`, nil))
+
+	requestBodySpec := operation.RequestBody.Spec.Spec
+	assert.Equal(t, "The file's bytes", requestBodySpec.Description)
+	assert.Equal(t, true, requestBodySpec.Required)
+	assert.Len(t, requestBodySpec.Content, 1)
+	schema := requestBodySpec.Content["application/octet-stream"].Spec.Schema.Spec
+	assert.Equal(t, &typeString, schema.Type)
+	assert.Equal(t, "binary", schema.Format)
+}
+
+func TestParseParamCommentByBodyBesideAcceptedJSONV3(t *testing.T) {
+	t.Parallel()
+
+	operation := NewOperationV3(New())
+	assert.NoError(t, operation.ParseComment(`@Accept json`, nil))
+	assert.NoError(t, operation.ParseComment(`@Param text body string true "Text to process"`, nil))
+
+	content := operation.RequestBody.Spec.Spec.Content
+	assert.Equal(t, &typeString, content["text/plain"].Spec.Schema.Spec.Type)
+	assert.Contains(t, content, "application/json")
+}
+
 func TestParseParamCommentByBodyTypeWithDeepNestedFieldsV3(t *testing.T) {
 	t.Parallel()
 
