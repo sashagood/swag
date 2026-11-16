@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -580,6 +581,19 @@ func (o *OperationV3) fillRequestBody(
 		o.RequestBody.Spec.Spec.Content = make(map[string]*spec.Extendable[spec.MediaType])
 	}
 
+	// A plain body goes under the raw media types @Accept declared, and
+	// under text/plain only when it declared none.
+	if primitive && !formData {
+		if declared := o.declaredRawContentTypes(); len(declared) > 0 {
+			o.RequestBody.Spec.Spec.Required = required
+			o.appendRequestBodyDescription(description)
+			for _, contentType := range declared {
+				setBodySchema(o.RequestBody.Spec.Spec.Content[contentType], name, description, schema)
+			}
+			return nil
+		}
+	}
+
 	contentType := mimeTypeJSON
 	if primitive && !formData {
 		contentType = mimeTypePlain
@@ -627,13 +641,43 @@ func (o *OperationV3) fillRequestBody(
 		return nil
 	}
 
-	// Append description to existing description if this is not the first body
+	o.appendRequestBodyDescription(description)
+	setBodySchema(mediaType, name, description, schema)
+
+	return nil
+}
+
+// appendRequestBodyDescription appends a body's description to the
+// request body's, if this is not the first body.
+func (o *OperationV3) appendRequestBodyDescription(description string) {
 	if o.RequestBody.Spec.Spec.Description != "" && description != "" {
 		o.RequestBody.Spec.Spec.Description += " | " + description
 	} else if description != "" {
 		o.RequestBody.Spec.Spec.Description = description
 	}
+}
 
+// declaredRawContentTypes returns, sorted, the media types @Accept
+// declared for a raw body: the ones still holding their default string
+// schema.
+func (o *OperationV3) declaredRawContentTypes() []string {
+	var out []string
+	for contentType, media := range o.RequestBody.Spec.Spec.Content {
+		if media == nil || !isDefaultAcceptSchema(media.Spec.Schema) {
+			continue
+		}
+		if t := *media.Spec.Schema.Spec.Type; t[0] == STRING {
+			out = append(out, contentType)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// setBodySchema puts a body's schema on a media type: in place of the
+// default schema @Accept left there, or beside the schemas of earlier
+// bodies.
+func setBodySchema(mediaType *spec.Extendable[spec.MediaType], name, description string, schema *spec.RefOrSpec[spec.Schema]) {
 	if schema.Ref != nil {
 		schema.Ref.Summary = name
 		schema.Ref.Description = description
@@ -652,8 +696,6 @@ func (o *OperationV3) fillRequestBody(
 		// If there's already a oneOf schema, append to it
 		mediaType.Spec.Schema.Spec.OneOf = append(mediaType.Spec.Schema.Spec.OneOf, schema)
 	}
-
-	return nil
 }
 
 func isDefaultAcceptSchema(schema *spec.RefOrSpec[spec.Schema]) bool {
