@@ -1135,7 +1135,9 @@ func (p *Parser) GetSchemaTypePathV3(schema *spec.RefOrSpec[spec.Schema], depth 
 		return []string{(*schema.Spec.Type)[0]}
 	}
 
-	println("found schema with no Type, returning any")
+	// A schema with no type takes any JSON value: an interface{}, or a
+	// map's interface{} values. It is a type, not a failure, as in the
+	// OpenAPI 2 path (GetSchemaTypePath).
 	return []string{ANY}
 }
 
@@ -1143,7 +1145,7 @@ func (p *Parser) getSchemaByRef(ref *spec.Ref) *spec.Schema {
 	searchString := strings.ReplaceAll(ref.Ref, "#/components/schemas/", "")
 	schemaRef, exists := p.openAPI.Components.Spec.Schemas[searchString]
 	if !exists || schemaRef == nil {
-		println(fmt.Sprintf("Schema not found for ref: %s, returning any", ref.Ref))
+		p.debug.Printf("warning: schema not found for ref %s, returning any", ref.Ref)
 		return &spec.Schema{} // return empty schema if not found
 	}
 

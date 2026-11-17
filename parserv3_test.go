@@ -687,3 +687,34 @@ func TestGetSchemaByRef(t *testing.T) {
 		assert.Equal(t, &spec.Schema{}, result)
 	})
 }
+
+func TestGetSchemaByRefWarnsOfAMissingSchema(t *testing.T) {
+	t.Parallel()
+
+	log := &testLogger{}
+	p := New(GenerateOpenAPI3Doc(true), SetDebugger(log))
+	p.openAPI.Components.Spec.Schemas = make(map[string]*spec.RefOrSpec[spec.Schema])
+
+	p.getSchemaByRef(&spec.Ref{Ref: "#/components/schemas/NonExistentSchema"})
+
+	require.Len(t, log.Messages, 1)
+	assert.Contains(t, log.Messages[0], "warning")
+	assert.Contains(t, log.Messages[0], "#/components/schemas/NonExistentSchema")
+}
+
+func TestGetSchemaTypePathV3OfAnUntypedSchemaIsAny(t *testing.T) {
+	t.Parallel()
+
+	log := &testLogger{}
+	p := New(GenerateOpenAPI3Doc(true), SetDebugger(log))
+
+	untyped := spec.NewRefOrSpec(nil, &spec.Schema{})
+	assert.Equal(t, []string{ANY}, p.GetSchemaTypePathV3(untyped, 2))
+
+	mapOfAny := &spec.Schema{}
+	mapOfAny.Type = &spec.SingleOrArray[string]{OBJECT}
+	mapOfAny.AdditionalProperties = spec.NewBoolOrSchema(false, spec.NewSchemaSpec())
+	assert.Equal(t, []string{OBJECT, ANY}, p.GetSchemaTypePathV3(spec.NewRefOrSpec(nil, mapOfAny), 2))
+
+	assert.Empty(t, log.Messages)
+}
