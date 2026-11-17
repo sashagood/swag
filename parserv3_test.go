@@ -718,3 +718,28 @@ func TestGetSchemaTypePathV3OfAnUntypedSchemaIsAny(t *testing.T) {
 
 	assert.Empty(t, log.Messages)
 }
+
+func TestProcessRouterOperationV3WarnsOfARouteWithNoResponses(t *testing.T) {
+	t.Parallel()
+
+	log := &testLogger{}
+	p := New(GenerateOpenAPI3Doc(true), SetDebugger(log))
+
+	helper := NewOperationV3(p)
+	require.NoError(t, helper.ParseComment("// @Summary a commented function that is no route", nil))
+	require.NoError(t, processRouterOperationV3(p, helper))
+	assert.Empty(t, log.Messages, "a function with no @Router is no route and needs no responses")
+
+	route := NewOperationV3(p)
+	require.NoError(t, route.ParseComment("// @Router /things [post]", nil))
+	require.NoError(t, processRouterOperationV3(p, route))
+	require.Len(t, log.Messages, 1)
+	assert.Contains(t, log.Messages[0], "POST /things")
+
+	log.Messages = nil
+	answered := NewOperationV3(p)
+	require.NoError(t, answered.ParseComment("// @Success 204", nil))
+	require.NoError(t, answered.ParseComment("// @Router /answered [get]", nil))
+	require.NoError(t, processRouterOperationV3(p, answered))
+	assert.Empty(t, log.Messages)
+}

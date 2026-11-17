@@ -569,9 +569,14 @@ func (p *Parser) ParseRouterAPIInfoV3(fileInfo *AstFileInfo) error {
 }
 
 func processRouterOperationV3(p *Parser, o *OperationV3) error {
+	// Every commented function gets an operation; only those with an
+	// @Router are routes, and only a route needs responses.
 	if o.Responses != nil && o.Responses.Spec != nil &&
 		len(o.Responses.Spec.Response) == 0 && o.Responses.Spec.Default == nil {
-		p.debug.Printf("warning: operation has no documented responses (missing @Success/@Failure/@Response)")
+		for _, route := range o.RouterProperties {
+			p.debug.Printf("warning: %s %s has no documented responses (missing @Success/@Failure/@Response)",
+				strings.ToUpper(route.HTTPMethod), route.Path)
+		}
 	}
 
 	for _, routeProperties := range o.RouterProperties {
